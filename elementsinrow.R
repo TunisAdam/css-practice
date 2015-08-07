@@ -1,6 +1,7 @@
 library(shiny)
 
-################# Complement generator function #############
+# Complement generator function ####
+
 compgen=function(oligo1,...) {
   
   # This function returns the PURE DNA complemnt of any single strand (sequence) handled as a string "atgctgctgcatc" written 5'-3' 
@@ -72,8 +73,8 @@ compgen=function(oligo1,...) {
   return(complement)
   
 }
-############################LIST GENERATOR FUNCTION ###################
 
+# LIST GENERATOR FUNCTION ####
 
 getComplementList=function (base){
   
@@ -109,18 +110,148 @@ getComplementList=function (base){
   return(compList)
   
 }
-##############################################################
 
+# ISOLATE LNA ####
 
-CSS Changes
+isolate_LNA =function(oligo){
+  
+  #expand oligo
+  
+  oligo1=substring(oligo,1:nchar(oligo),1:nchar(oligo)) # expand it into a vector
+  
+  
+  # inital loop params
+  i=1
+  oligo1mod=NULL
+  while (i <= length(oligo1)){
+    
+    
+    if(oligo1[i]=="+"){
+      plusLNA=c(oligo1[i],oligo1[i+1])
+      oligo1mod=c(oligo1mod,paste(plusLNA,sep="",collapse=""))
+      
+      i=i+2}
+    
+    
+    
+    else {
+      oligo1mod=c(oligo1mod,oligo1[i])
+      i=i+1
+    }
+    
+  } #CONCATENATE "+" , "c" to "+c" when applicable so we can scan better
+  
+  
+  return(oligo1mod)
+  
+  
+}
 
+# SEQ CHECK FUNCTION (INPUT CONDITIONING) ####
 
+seqcheck=function(oligo1){
+  
+  # this function is to ensure that only the proper inputs get passed on to the tm pred program.
+  # IT ALSO CONDITIONS THE OLIGO TO LOWER CASE 
+  
+  
+  #oligo1= "+a+a+gc" Example oligo
+  
+  ### Preliminary Conditioning ###
+  
+  #remove spaces
+  oligo1=gsub(" ","",oligo1)
+  
+  #put it to lower case
+  oligo1=tolower(oligo1)
+  
+  
+  
+  
+  # ANY OF THE FOLLOWING SEQUENCE MISTAKES WILL GIVE AN ERROR #
+  nchar(oligo1)
+  
+  #0. Make sure there is an input
+  if (nchar(oligo1)==0 |is.na(oligo1)){
+    stop("Please enter a sequence written 5' to 3'")
+  }
+  #print("passed check 0") 
+  
 
+  
+  #1.NON Watson CRICK or + checaters (we have some characters)
+  
+  nonwc=grep(pattern="[^atgc+ATGC]",oligo1,value=TRUE)
+  
+  if(length(nonwc)>0){ # the oligo contains non W/C or + characters
+    
+    stop("Only a,t,g,c bases and + are allowed")
+    
+  }
+  
+  
+  #print("passed check 1")
 
+  #2. CHECK THAT + is always followed by a letter (a,t,g,c)
+  
+  oligo1exp=substring(oligo1,1:nchar(oligo1),1:nchar(oligo1))
+  for (i in 1:(length(oligo1exp))){
+    
+    if(oligo1exp[i]=="+"){# found a +
+      # if the next element isn't a letter, give error
+      #print(oligo1exp[i])
+      #print(oligo1exp[i+1])
+      
+      nextletter=grep(pattern="[^atgcATGC]",oligo1exp[i+1], value=TRUE) # vector with non atgc elements
+      
+      if(length(nextletter)>0){
+        stop("a + must be followed by an a,t,g, or c base")
+        
+      }
+      
+      if(is.na(oligo1exp[i+1])){
+        stop("a + must be followed by an a,t,g, or c base")
+        
+      }
+      
+      
+      
+      
+    }
+  } # end of for loop
+  
+  #print("passed check 2")
+  
 
+  
+  #3. Check that the duplex isnt too short (4 bp is shortest allowed _ AS PER IDT BIOPHYSICS)
+  
+  oligo1short=gsub("\\+", "", oligo1) # get rid of all +s 
+  
+  if(nchar(oligo1short)<4 & nchar(oligo1short)>0){
+    
+    stop ("sequence is too short")
+    
+  }
+  
+  #print("passed check 3")
+  
+  return(oligo1)
+  
+  
+}
 
+#REVERSE CHARACTERS ####
 
+reverse_chars=function(string){
+  
+  string_split=strsplit(as.character(string),split="")
+  reversed_split=string_split[[1]][nchar(string):1]
+  paste(reversed_split,collapse="")
+  
+}
 
+#  CSS   CHANGES  ####
 
 css <- "
 #sequence {
@@ -147,7 +278,7 @@ padding: 0;
 }
 "
 
-####################################################################
+# SHINY APP ####
 
 runApp(shinyApp(
   ui = fluidPage(
@@ -159,9 +290,9 @@ runApp(shinyApp(
   server = function(input, output, session) {
     output$mismatches <- renderUI({
       sequence <- toupper(input$sequence)
-      print(sequence)
+      #print(sequence)
       sequence= isolate_LNA(sequence)
-      print(sequence)
+      #print(sequence)
       
       lapply(1:length(sequence), function(x) {
         div(class = "sequence-location",
